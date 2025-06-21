@@ -9,6 +9,15 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, Calendar, ShoppingCart, FileText, TrendingUp, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+interface ActivityItem {
+  type: string;
+  title: string;
+  description: string;
+  date: string;
+  severity?: string;
+  status?: string;
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
 
@@ -54,7 +63,7 @@ const Dashboard = () => {
           .limit(3)
       ]);
 
-      const activities = [
+      const activities: ActivityItem[] = [
         ...(recentSymptomChecks.data || []).map(check => ({
           type: 'symptom_check',
           title: 'Symptom Analysis',
