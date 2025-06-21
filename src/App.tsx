@@ -10,6 +10,12 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/layout/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SymptomChecker from "./pages/SymptomChecker";
+import MedicineStore from "./pages/MedicineStore";
+import Appointments from "./pages/Appointments";
+import Dashboard from "./pages/Dashboard";
+import HealthRecords from "./pages/HealthRecords";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +33,36 @@ const App = () => (
               <Route path="/" element={
                 <ProtectedRoute>
                   <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/symptom-checker" element={
+                <ProtectedRoute>
+                  <SymptomChecker />
+                </ProtectedRoute>
+              } />
+              <Route path="/medicine-store" element={
+                <ProtectedRoute>
+                  <MedicineStore />
+                </ProtectedRoute>
+              } />
+              <Route path="/appointments" element={
+                <ProtectedRoute>
+                  <Appointments />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/health-records" element={
+                <ProtectedRoute>
+                  <HealthRecords />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
