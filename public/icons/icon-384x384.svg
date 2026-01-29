@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 384" width="384" height="384">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="384" height="384" rx="57.599999999999994" fill="url(#grad)"/>
+  
+  <!-- Medical Cross -->
+  <g transform="translate(192, 192)">
+    <!-- Vertical bar -->
+    <rect x="-30.72" y="-92.16" width="61.44" height="184.32" rx="7.68" fill="white"/>
+    <!-- Horizontal bar -->
+    <rect x="-92.16" y="-30.72" width="184.32" height="61.44" rx="7.68" fill="white"/>
+  </g>
+  
+  <!-- Heart pulse line -->
+  <path d="M 76.80000000000001 268.79999999999995 L 115.19999999999999 268.79999999999995 L 138.24 230.39999999999998 L 161.28 307.20000000000005 L 184.32 268.79999999999995 L 307.20000000000005 268.79999999999995" 
+        stroke="white" 
+        stroke-width="9.216000000000001" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"
+        opacity="0.8"/>
+</svg>

@@ -1,0 +1,32 @@
+<!-- Icon Placeholder Generator Script -->
+<!-- Run this in the browser console or use an icon generator like https://www.pwabuilder.com/ -->
+
+<!-- For now, we'll create a simple SVG icon that can be converted to various sizes -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="url(#grad)"/>
+  
+  <!-- Medical Cross -->
+  <g transform="translate(256, 256)">
+    <!-- Vertical bar -->
+    <rect x="-40" y="-120" width="80" height="240" rx="10" fill="white"/>
+    <!-- Horizontal bar -->
+    <rect x="-120" y="-40" width="240" height="80" rx="10" fill="white"/>
+  </g>
+  
+  <!-- Heart pulse line -->
+  <path d="M 100 350 L 150 350 L 180 300 L 210 400 L 240 350 L 412 350" 
+        stroke="white" 
+        stroke-width="12" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"
+        opacity="0.8"/>
+</svg>
