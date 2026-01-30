@@ -7,8 +7,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "db:migrate": "node dist/scripts/migrate.js",
-    "db:seed": "node dist/scripts/seed.js"
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "db:seed": "echo 'No seed script configured'"
   },
   "keywords": [],
   "author": "",

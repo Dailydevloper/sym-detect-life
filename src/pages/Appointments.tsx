@@ -1,80 +1,76 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Star, User } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { appointmentApi, doctorApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar, Clock, Star, User } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const Appointments = () => {
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('');
-  const [notes, setNotes] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [appointmentTime, setAppointmentTime] = useState("");
+  const [notes, setNotes] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: doctors } = useQuery({
-    queryKey: ['doctors'],
+    queryKey: ["doctors"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('doctors')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
-    }
+      const response = await doctorApi.getAll();
+      return response.data;
+    },
   });
 
   const { data: appointments } = useQuery({
-    queryKey: ['appointments', user?.id],
+    queryKey: ["appointments", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          doctors (*)
-        `)
-        .eq('user_id', user.id)
-        .order('appointment_date', { ascending: false });
-      if (error) throw error;
-      return data || [];
+      const response = await appointmentApi.getAll();
+      return response.data || [];
     },
-    enabled: !!user
+    enabled: !!user,
   });
 
   const bookAppointmentMutation = useMutation({
     mutationFn: async (appointmentData: any) => {
-      const { data, error } = await supabase
-        .from('appointments')
-        .insert(appointmentData);
-      if (error) throw error;
-      return data;
+      const response = await appointmentApi.create(appointmentData);
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast({
         title: "Appointment booked",
-        description: "Your appointment has been scheduled successfully"
+        description: "Your appointment has been scheduled successfully",
       });
       resetForm();
-    }
+    },
   });
 
   const resetForm = () => {
     setSelectedDoctor(null);
-    setAppointmentDate('');
-    setAppointmentTime('');
-    setNotes('');
+    setAppointmentDate("");
+    setAppointmentTime("");
+    setNotes("");
   };
 
   const handleBookAppointment = () => {
@@ -82,26 +78,29 @@ const Appointments = () => {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     bookAppointmentMutation.mutate({
-      user_id: user?.id,
-      doctor_id: selectedDoctor.id,
-      appointment_date: appointmentDate,
-      appointment_time: appointmentTime,
-      notes: notes || null
+      doctorId: selectedDoctor.id,
+      appointmentDate,
+      appointmentTime,
+      reason: notes || "Consultation",
     });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "scheduled":
+        return "bg-blue-100 text-blue-800";
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -134,16 +133,19 @@ const Appointments = () => {
                       <Card
                         key={doctor.id}
                         className={`cursor-pointer transition-colors ${
-                          selectedDoctor?.id === doctor.id 
-                            ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                          selectedDoctor?.id === doctor.id
+                            ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-800"
                         }`}
                         onClick={() => setSelectedDoctor(doctor)}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center gap-3">
                             <img
-                              src={doctor.avatar_url || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100'}
+                              src={
+                                doctor.avatar_url ||
+                                "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100"
+                              }
                               alt={doctor.name}
                               className="w-12 h-12 rounded-full object-cover"
                             />
@@ -155,12 +157,18 @@ const Appointments = () => {
                               <div className="flex items-center gap-2 mt-1">
                                 <div className="flex items-center gap-1">
                                   <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                                  <span className="text-xs">{doctor.rating}</span>
+                                  <span className="text-xs">
+                                    {doctor.rating}
+                                  </span>
                                 </div>
                                 <span className="text-xs text-gray-500">•</span>
-                                <span className="text-xs">{doctor.experience_years} years</span>
+                                <span className="text-xs">
+                                  {doctor.experience_years} years
+                                </span>
                                 <span className="text-xs text-gray-500">•</span>
-                                <span className="text-xs font-medium">${doctor.consultation_fee}</span>
+                                <span className="text-xs font-medium">
+                                  ${doctor.consultation_fee}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -180,12 +188,15 @@ const Appointments = () => {
                           type="date"
                           value={appointmentDate}
                           onChange={(e) => setAppointmentDate(e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
+                          min={new Date().toISOString().split("T")[0]}
                         />
                       </div>
                       <div>
                         <Label htmlFor="time">Time</Label>
-                        <Select value={appointmentTime} onValueChange={setAppointmentTime}>
+                        <Select
+                          value={appointmentTime}
+                          onValueChange={setAppointmentTime}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select time" />
                           </SelectTrigger>
@@ -216,7 +227,9 @@ const Appointments = () => {
                       disabled={bookAppointmentMutation.isPending}
                       className="w-full"
                     >
-                      {bookAppointmentMutation.isPending ? "Booking..." : "Book Appointment"}
+                      {bookAppointmentMutation.isPending
+                        ? "Booking..."
+                        : "Book Appointment"}
                     </Button>
                   </>
                 )}
@@ -236,11 +249,18 @@ const Appointments = () => {
                 {appointments && appointments.length > 0 ? (
                   <div className="space-y-4">
                     {appointments.map((appointment) => (
-                      <Card key={appointment.id} className="border-l-4 border-l-blue-500">
+                      <Card
+                        key={appointment.id}
+                        className="border-l-4 border-l-blue-500"
+                      >
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold">{appointment.doctors.name}</h3>
-                            <Badge className={getStatusColor(appointment.status)}>
+                            <h3 className="font-semibold">
+                              {appointment.doctors.name}
+                            </h3>
+                            <Badge
+                              className={getStatusColor(appointment.status)}
+                            >
                               {appointment.status}
                             </Badge>
                           </div>
@@ -250,7 +270,9 @@ const Appointments = () => {
                           <div className="flex items-center gap-4 text-sm">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
-                              {new Date(appointment.appointment_date).toLocaleDateString()}
+                              {new Date(
+                                appointment.appointment_date,
+                              ).toLocaleDateString()}
                             </div>
                             <div className="flex items-center gap-1">
                               <Clock className="w-4 h-4" />

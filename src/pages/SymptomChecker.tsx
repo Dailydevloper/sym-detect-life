@@ -1,19 +1,24 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, Brain, CheckCircle } from 'lucide-react';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
+import { symptomCheckApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { AlertTriangle, Brain, CheckCircle } from "lucide-react";
 
 const SymptomChecker = () => {
   const [symptoms, setSymptoms] = useState<string[]>([]);
-  const [currentSymptom, setCurrentSymptom] = useState('');
+  const [currentSymptom, setCurrentSymptom] = useState("");
   const [diagnosis, setDiagnosis] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -22,12 +27,12 @@ const SymptomChecker = () => {
   const addSymptom = () => {
     if (currentSymptom.trim() && !symptoms.includes(currentSymptom.trim())) {
       setSymptoms([...symptoms, currentSymptom.trim()]);
-      setCurrentSymptom('');
+      setCurrentSymptom("");
     }
   };
 
   const removeSymptom = (symptom: string) => {
-    setSymptoms(symptoms.filter(s => s !== symptom));
+    setSymptoms(symptoms.filter((s) => s !== symptom));
   };
 
   const analyzeSymptoms = async () => {
@@ -35,7 +40,7 @@ const SymptomChecker = () => {
       toast({
         title: "No symptoms",
         description: "Please add at least one symptom",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -50,35 +55,30 @@ const SymptomChecker = () => {
           "Get plenty of rest",
           "Stay hydrated",
           "Consider over-the-counter pain relievers",
-          "Consult a doctor if symptoms worsen"
+          "Consult a doctor if symptoms worsen",
         ],
-        confidence: 85
+        confidence: 85,
       };
 
       // Save to database
-      const { error } = await supabase
-        .from('symptom_checks')
-        .insert({
-          user_id: user?.id,
-          symptoms,
-          ai_diagnosis: mockDiagnosis.condition,
-          recommendations: mockDiagnosis.recommendations.join('; '),
-          severity_level: mockDiagnosis.severity
-        });
-
-      if (error) throw error;
+      await symptomCheckApi.create({
+        symptoms,
+        severity: mockDiagnosis.severity,
+        duration: mockDiagnosis.condition,
+        additionalInfo: mockDiagnosis.recommendations.join("; "),
+      });
 
       setDiagnosis(mockDiagnosis);
-      
+
       toast({
         title: "Analysis complete",
-        description: "Your symptoms have been analyzed"
+        description: "Your symptoms have been analyzed",
       });
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -87,19 +87,27 @@ const SymptomChecker = () => {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'low': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'high': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "low":
+        return "bg-green-100 text-green-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "high":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
-      case 'low': return <CheckCircle className="w-4 h-4" />;
-      case 'medium': return <AlertTriangle className="w-4 h-4" />;
-      case 'high': return <AlertTriangle className="w-4 h-4" />;
-      default: return <Brain className="w-4 h-4" />;
+      case "low":
+        return <CheckCircle className="w-4 h-4" />;
+      case "medium":
+        return <AlertTriangle className="w-4 h-4" />;
+      case "high":
+        return <AlertTriangle className="w-4 h-4" />;
+      default:
+        return <Brain className="w-4 h-4" />;
     }
   };
 
@@ -132,7 +140,7 @@ const SymptomChecker = () => {
                   placeholder="Enter a symptom..."
                   value={currentSymptom}
                   onChange={(e) => setCurrentSymptom(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addSymptom()}
+                  onKeyPress={(e) => e.key === "Enter" && addSymptom()}
                 />
                 <Button onClick={addSymptom}>Add</Button>
               </div>
@@ -150,8 +158,8 @@ const SymptomChecker = () => {
                 ))}
               </div>
 
-              <Button 
-                onClick={analyzeSymptoms} 
+              <Button
+                onClick={analyzeSymptoms}
                 disabled={loading || symptoms.length === 0}
                 className="w-full"
               >
@@ -173,14 +181,17 @@ const SymptomChecker = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Possible Condition</Label>
+                  <Label className="text-sm font-medium">
+                    Possible Condition
+                  </Label>
                   <p className="text-lg font-semibold">{diagnosis.condition}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Label className="text-sm font-medium">Severity Level</Label>
                   <Badge className={getSeverityColor(diagnosis.severity)}>
-                    {diagnosis.severity.charAt(0).toUpperCase() + diagnosis.severity.slice(1)}
+                    {diagnosis.severity.charAt(0).toUpperCase() +
+                      diagnosis.severity.slice(1)}
                   </Badge>
                 </div>
 
@@ -192,16 +203,21 @@ const SymptomChecker = () => {
                 <div>
                   <Label className="text-sm font-medium">Recommendations</Label>
                   <ul className="list-disc list-inside space-y-1 mt-2">
-                    {diagnosis.recommendations.map((rec: string, index: number) => (
-                      <li key={index} className="text-sm">{rec}</li>
-                    ))}
+                    {diagnosis.recommendations.map(
+                      (rec: string, index: number) => (
+                        <li key={index} className="text-sm">
+                          {rec}
+                        </li>
+                      ),
+                    )}
                   </ul>
                 </div>
 
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Disclaimer:</strong> This is not a substitute for professional medical advice. 
-                    Please consult with a healthcare provider for proper diagnosis and treatment.
+                    <strong>Disclaimer:</strong> This is not a substitute for
+                    professional medical advice. Please consult with a
+                    healthcare provider for proper diagnosis and treatment.
                   </p>
                 </div>
               </CardContent>

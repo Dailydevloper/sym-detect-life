@@ -1,69 +1,80 @@
-
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { User, Save, Camera } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { profileApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { User, Save, Camera } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const Profile = () => {
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [gender, setGender] = useState('');
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [gender, setGender] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: profile } = useQuery({
-    queryKey: ['profile', user?.id],
+    queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
+      try {
+        const response = await profileApi.get();
+        return response.data;
+      } catch (error: any) {
+        if (error?.response?.status === 404) return null;
+        throw error;
+      }
     },
-    enabled: !!user
+    enabled: !!user,
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (profileData: any) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user?.id,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        });
-      if (error) throw error;
-      return data;
+    mutationFn: async (profileData: {
+      full_name?: string;
+      phone?: string;
+      date_of_birth?: string | null;
+      gender?: string | null;
+      email?: string;
+      avatar_url?: string | null;
+    }) => {
+      const response = await profileApi.update(profileData);
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       toast({
         title: "Profile updated",
-        description: "Your profile has been saved successfully"
+        description: "Your profile has been saved successfully",
       });
-    }
+    },
   });
 
   useEffect(() => {
     if (profile) {
-      setFullName(profile.full_name || '');
-      setPhone(profile.phone || '');
-      setDateOfBirth(profile.date_of_birth || '');
-      setGender(profile.gender || '');
+      setFullName(profile.full_name || "");
+      setPhone(profile.phone || "");
+      setDateOfBirth(profile.date_of_birth || "");
+      setGender(profile.gender || "");
     } else if (user) {
-      setFullName(user.user_metadata?.full_name || '');
+      setFullName(user.full_name || "");
     }
   }, [profile, user]);
 
@@ -73,7 +84,7 @@ const Profile = () => {
       phone,
       date_of_birth: dateOfBirth || null,
       gender: gender || null,
-      email: user?.email
+      email: user?.email,
     });
   };
 
@@ -99,9 +110,9 @@ const Profile = () => {
             </CardHeader>
             <CardContent className="text-center">
               <div className="w-32 h-32 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
-                {user?.user_metadata?.avatar_url ? (
+                {user?.avatar_url ? (
                   <img
-                    src={user.user_metadata.avatar_url}
+                    src={user.avatar_url}
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
@@ -135,12 +146,12 @@ const Profile = () => {
                       placeholder="Enter your full name"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
-                      value={user?.email || ''}
+                      value={user?.email || ""}
                       disabled
                       className="bg-gray-100 dark:bg-gray-800"
                     />
@@ -157,7 +168,7 @@ const Profile = () => {
                       placeholder="Enter your phone number"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="dateOfBirth">Date of Birth</Label>
                     <Input
@@ -179,18 +190,22 @@ const Profile = () => {
                       <SelectItem value="male">Male</SelectItem>
                       <SelectItem value="female">Female</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
-                      <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                      <SelectItem value="prefer_not_to_say">
+                        Prefer not to say
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <Button 
+                <Button
                   onClick={handleSaveProfile}
                   disabled={updateProfileMutation.isPending}
                   className="w-full"
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+                  {updateProfileMutation.isPending
+                    ? "Saving..."
+                    : "Save Changes"}
                 </Button>
               </CardContent>
             </Card>
@@ -230,7 +245,7 @@ const Profile = () => {
                     placeholder="Emergency contact name and phone"
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="allergies">Known Allergies</Label>
                   <Input
@@ -238,7 +253,7 @@ const Profile = () => {
                     placeholder="List any known allergies"
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="medications">Current Medications</Label>
                   <Input

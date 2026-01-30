@@ -1,109 +1,99 @@
-
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { ShoppingCart, Search, Plus, Minus } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { cartApi, medicineApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { ShoppingCart, Search, Plus, Minus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const MedicineStore = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [cartItems, setCartItems] = useState<any[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: medicines, isLoading } = useQuery({
-    queryKey: ['medicines'],
+    queryKey: ["medicines"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('medicines')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
-    }
+      const response = await medicineApi.getAll();
+      return response.data;
+    },
   });
 
   const { data: cart } = useQuery({
-    queryKey: ['cart', user?.id],
+    queryKey: ["cart", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
-        .from('cart_items')
-        .select(`
-          *,
-          medicines (*)
-        `)
-        .eq('user_id', user.id);
-      if (error) throw error;
-      return data || [];
+      const response = await cartApi.get();
+      return response.data || [];
     },
-    enabled: !!user
+    enabled: !!user,
   });
 
   const addToCartMutation = useMutation({
-    mutationFn: async ({ medicineId, quantity }: { medicineId: string; quantity: number }) => {
-      const { data, error } = await supabase
-        .from('cart_items')
-        .upsert({
-          user_id: user?.id,
-          medicine_id: medicineId,
-          quantity
-        }, {
-          onConflict: 'user_id,medicine_id'
-        });
-      if (error) throw error;
-      return data;
+    mutationFn: async ({
+      medicineId,
+      quantity,
+    }: {
+      medicineId: string;
+      quantity: number;
+    }) => {
+      const response = await cartApi.add({ medicineId, quantity });
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
       toast({
         title: "Added to cart",
-        description: "Item added successfully"
+        description: "Item added successfully",
       });
-    }
+    },
   });
 
   const updateCartMutation = useMutation({
-    mutationFn: async ({ medicineId, quantity }: { medicineId: string; quantity: number }) => {
+    mutationFn: async ({
+      medicineId,
+      quantity,
+    }: {
+      medicineId: string;
+      quantity: number;
+    }) => {
       if (quantity <= 0) {
-        const { error } = await supabase
-          .from('cart_items')
-          .delete()
-          .eq('user_id', user?.id)
-          .eq('medicine_id', medicineId);
-        if (error) throw error;
+        await cartApi.remove(medicineId);
       } else {
-        const { error } = await supabase
-          .from('cart_items')
-          .update({ quantity })
-          .eq('user_id', user?.id)
-          .eq('medicine_id', medicineId);
-        if (error) throw error;
+        await cartApi.update(medicineId, quantity);
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-    }
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+    },
   });
 
-  const filteredMedicines = medicines?.filter(medicine =>
-    medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    medicine.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMedicines = medicines?.filter(
+    (medicine) =>
+      medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      medicine.category?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getCartQuantity = (medicineId: string) => {
-    const item = cart?.find(item => item.medicine_id === medicineId);
+    const item = cart?.find((item) => item.medicine_id === medicineId);
     return item?.quantity || 0;
   };
 
   const getTotalPrice = () => {
-    return cart?.reduce((total, item) => total + (item.medicines.price * item.quantity), 0) || 0;
+    return (
+      cart?.reduce((total, item) => total + item.price * item.quantity, 0) || 0
+    );
   };
 
   const handleAddToCart = (medicineId: string) => {
@@ -137,7 +127,7 @@ const MedicineStore = () => {
               className="pl-10"
             />
           </div>
-          
+
           <Card className="ml-4">
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -171,7 +161,10 @@ const MedicineStore = () => {
                 <Card key={medicine.id} className="overflow-hidden">
                   <div className="h-48 bg-gray-100 dark:bg-gray-800 relative">
                     <img
-                      src={medicine.image_url || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400'}
+                      src={
+                        medicine.image_url ||
+                        "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400"
+                      }
                       alt={medicine.name}
                       className="w-full h-full object-cover"
                     />
@@ -181,24 +174,25 @@ const MedicineStore = () => {
                       </Badge>
                     )}
                   </div>
-                  
+
                   <CardContent className="p-4">
-                    <h3 className="font-semibold text-lg mb-1">{medicine.name}</h3>
+                    <h3 className="font-semibold text-lg mb-1">
+                      {medicine.name}
+                    </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                       {medicine.description}
                     </p>
-                    
+
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-2xl font-bold text-green-600">
                         ${medicine.price}
                       </span>
-                      <Badge variant="outline">
-                        {medicine.category}
-                      </Badge>
+                      <Badge variant="outline">{medicine.category}</Badge>
                     </div>
 
                     <p className="text-xs text-gray-500 mb-3">
-                      Stock: {medicine.stock_quantity} | by {medicine.manufacturer}
+                      Stock: {medicine.stock_quantity} | by{" "}
+                      {medicine.manufacturer}
                     </p>
 
                     {quantity > 0 ? (
@@ -206,7 +200,9 @@ const MedicineStore = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleUpdateQuantity(medicine.id, quantity - 1)}
+                          onClick={() =>
+                            handleUpdateQuantity(medicine.id, quantity - 1)
+                          }
                         >
                           <Minus className="w-4 h-4" />
                         </Button>
@@ -214,7 +210,9 @@ const MedicineStore = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleUpdateQuantity(medicine.id, quantity + 1)}
+                          onClick={() =>
+                            handleUpdateQuantity(medicine.id, quantity + 1)
+                          }
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -225,7 +223,9 @@ const MedicineStore = () => {
                         disabled={medicine.stock_quantity === 0}
                         className="w-full"
                       >
-                        {medicine.stock_quantity === 0 ? 'Out of Stock' : 'Add to Cart'}
+                        {medicine.stock_quantity === 0
+                          ? "Out of Stock"
+                          : "Add to Cart"}
                       </Button>
                     )}
                   </CardContent>

@@ -1,33 +1,20 @@
-
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const GoogleAuthButton = () => {
   const { toast } = useToast();
+  const { googleSignIn } = useAuth();
 
   const handleGoogleSignIn = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      });
-      
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+      googleSignIn();
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive"
+        description: error?.message || "An unexpected error occurred",
+        variant: "destructive",
       });
     }
   };

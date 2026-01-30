@@ -1,65 +1,68 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { FileText, Upload, Download, Plus } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { healthRecordApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { FileText, Upload, Download, Plus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const HealthRecords = () => {
   const [isAdding, setIsAdding] = useState(false);
-  const [recordType, setRecordType] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [recordType, setRecordType] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: healthRecords } = useQuery({
-    queryKey: ['health-records', user?.id],
+    queryKey: ["health-records", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
-        .from('health_records')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
+      const response = await healthRecordApi.getAll();
+      return response.data || [];
     },
-    enabled: !!user
+    enabled: !!user,
   });
 
   const addRecordMutation = useMutation({
     mutationFn: async (recordData: any) => {
-      const { data, error } = await supabase
-        .from('health_records')
-        .insert(recordData);
-      if (error) throw error;
-      return data;
+      const response = await healthRecordApi.create(recordData);
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['health-records'] });
+      queryClient.invalidateQueries({ queryKey: ["health-records"] });
       toast({
         title: "Record added",
-        description: "Health record has been saved successfully"
+        description: "Health record has been saved successfully",
       });
       resetForm();
-    }
+    },
   });
 
   const resetForm = () => {
     setIsAdding(false);
-    setRecordType('');
-    setTitle('');
-    setDescription('');
+    setRecordType("");
+    setTitle("");
+    setDescription("");
   };
 
   const handleAddRecord = () => {
@@ -67,27 +70,31 @@ const HealthRecords = () => {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     addRecordMutation.mutate({
-      user_id: user?.id,
-      record_type: recordType,
+      recordType,
       title,
-      description: description || null,
-      data: {}
+      description: description || undefined,
+      recordDate: new Date().toISOString().split("T")[0],
     });
   };
 
   const getRecordTypeColor = (type: string) => {
     switch (type) {
-      case 'symptom_check': return 'bg-blue-100 text-blue-800';
-      case 'prescription': return 'bg-green-100 text-green-800';
-      case 'lab_result': return 'bg-yellow-100 text-yellow-800';
-      case 'consultation': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "symptom_check":
+        return "bg-blue-100 text-blue-800";
+      case "prescription":
+        return "bg-green-100 text-green-800";
+      case "lab_result":
+        return "bg-yellow-100 text-yellow-800";
+      case "consultation":
+        return "bg-purple-100 text-purple-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -132,14 +139,16 @@ const HealthRecords = () => {
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="symptom_check">Symptom Check</SelectItem>
+                      <SelectItem value="symptom_check">
+                        Symptom Check
+                      </SelectItem>
                       <SelectItem value="prescription">Prescription</SelectItem>
                       <SelectItem value="lab_result">Lab Result</SelectItem>
                       <SelectItem value="consultation">Consultation</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="title">Title</Label>
                   <Input
@@ -162,7 +171,10 @@ const HealthRecords = () => {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={handleAddRecord} disabled={addRecordMutation.isPending}>
+                <Button
+                  onClick={handleAddRecord}
+                  disabled={addRecordMutation.isPending}
+                >
                   {addRecordMutation.isPending ? "Adding..." : "Add Record"}
                 </Button>
                 <Button variant="outline" onClick={resetForm}>
@@ -176,7 +188,10 @@ const HealthRecords = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {healthRecords && healthRecords.length > 0 ? (
             healthRecords.map((record) => (
-              <Card key={record.id} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={record.id}
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -184,7 +199,7 @@ const HealthRecords = () => {
                       <h3 className="font-semibold">{record.title}</h3>
                     </div>
                     <Badge className={getRecordTypeColor(record.record_type)}>
-                      {record.record_type.replace('_', ' ')}
+                      {record.record_type.replace("_", " ")}
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-500">
@@ -197,7 +212,7 @@ const HealthRecords = () => {
                       {record.description}
                     </p>
                   )}
-                  
+
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline">
                       <Download className="w-3 h-3 mr-1" />
@@ -244,9 +259,7 @@ const HealthRecords = () => {
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Drag and drop files here, or click to browse
               </p>
-              <Button variant="outline">
-                Choose Files
-              </Button>
+              <Button variant="outline">Choose Files</Button>
             </div>
           </CardContent>
         </Card>

@@ -1,23 +1,21 @@
-
-import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import AuthLayout from '@/components/auth/AuthLayout';
-import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
+import React, { useState } from "react";
+import { Navigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import AuthLayout from "@/components/auth/AuthLayout";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signIn, signUp } = useAuth();
 
   // Redirect if already authenticated
   if (!authLoading && user) {
@@ -30,41 +28,26 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              full_name: fullName
-            }
-          }
-        });
-
-        if (error) throw error;
-
+        await signUp(email, password, fullName);
         toast({
           title: "Success!",
-          description: "Please check your email to confirm your account."
+          description: "Your account has been created successfully.",
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) throw error;
-
+        await signIn(email, password);
         toast({
           title: "Welcome back!",
-          description: "You've been signed in successfully."
+          description: "You've been signed in successfully.",
         });
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
-        variant: "destructive"
+        description:
+          error.response?.data?.error ||
+          error.message ||
+          "Authentication failed",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -74,7 +57,9 @@ const Auth = () => {
   return (
     <AuthLayout
       title={isSignUp ? "Create Account" : "Welcome Back"}
-      subtitle={isSignUp ? "Join our healthcare platform" : "Sign in to your account"}
+      subtitle={
+        isSignUp ? "Join our healthcare platform" : "Sign in to your account"
+      }
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {isSignUp && (
@@ -124,7 +109,7 @@ const Auth = () => {
           className="w-full bg-blue-600 hover:bg-blue-700"
           disabled={loading}
         >
-          {loading ? "Please wait..." : (isSignUp ? "Create Account" : "Sign In")}
+          {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
         </Button>
 
         <div className="relative">
@@ -132,7 +117,9 @@ const Auth = () => {
             <div className="w-full border-t border-gray-300 dark:border-gray-600" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
+            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
+              Or continue with
+            </span>
           </div>
         </div>
 
@@ -144,7 +131,9 @@ const Auth = () => {
             onClick={() => setIsSignUp(!isSignUp)}
             className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
           >
-            {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
+            {isSignUp
+              ? "Already have an account? Sign in"
+              : "Don't have an account? Sign up"}
           </button>
         </div>
       </form>
