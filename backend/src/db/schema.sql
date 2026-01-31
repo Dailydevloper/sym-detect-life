@@ -151,6 +151,23 @@ CREATE INDEX IF NOT EXISTS idx_health_records_user_id ON public.health_records(u
 CREATE INDEX IF NOT EXISTS idx_symptom_checks_user_id ON public.symptom_checks(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
 
+-- Create video calls table for storing call records
+CREATE TABLE IF NOT EXISTS public.video_calls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  appointment_id UUID REFERENCES public.appointments(id) ON DELETE CASCADE,
+  initiator_id UUID REFERENCES public.users(id),
+  status TEXT DEFAULT 'pending', -- 'pending', 'active', 'ended', 'missed'
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+  duration_seconds INTEGER,
+  recording_url TEXT, -- URL to stored recording if available
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_video_calls_appointment_id ON public.video_calls(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_video_calls_initiator_id ON public.video_calls(initiator_id);
+
 -- Insert sample medicines data
 INSERT INTO public.medicines (name, description, price, stock_quantity, category, manufacturer, requires_prescription, image_url) VALUES
 ('Paracetamol 500mg', 'Pain reliever and fever reducer', 5.99, 100, 'Pain Relief', 'HealthCorp', false, 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400'),

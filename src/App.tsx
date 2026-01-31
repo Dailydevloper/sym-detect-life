@@ -16,17 +16,18 @@ import Appointments from "./pages/Appointments";
 import Dashboard from "./pages/Dashboard";
 import HealthRecords from "./pages/HealthRecords";
 import Profile from "./pages/Profile";
+import VideoCall from "./pages/VideoCall";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <PWAManager />
-      <BrowserRouter>
-        <AuthProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Toaster />
+          <Sonner />
+          <PWAManager />
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <Navbar />
             <Routes>
@@ -64,6 +65,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/video-call/:appointmentId"
+                element={
+                  <ProtectedRoute>
+                    <VideoCall />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
@@ -91,8 +100,8 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
-        </AuthProvider>
-      </BrowserRouter>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

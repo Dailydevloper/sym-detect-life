@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,16 +22,25 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { appointmentApi, doctorApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Star, User } from "lucide-react";
+import { Calendar, Clock, Star, User, Video } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Doctor, Appointment } from "@/types";
+
+interface AppointmentFormData {
+  doctorId: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  reason: string;
+}
 
 const Appointments = () => {
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
   const [notes, setNotes] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: doctors } = useQuery({
@@ -52,7 +62,7 @@ const Appointments = () => {
   });
 
   const bookAppointmentMutation = useMutation({
-    mutationFn: async (appointmentData: any) => {
+    mutationFn: async (appointmentData: AppointmentFormData) => {
       const response = await appointmentApi.create(appointmentData);
       return response.data;
     },
@@ -248,7 +258,7 @@ const Appointments = () => {
               <CardContent>
                 {appointments && appointments.length > 0 ? (
                   <div className="space-y-4">
-                    {appointments.map((appointment) => (
+                    {appointments?.map((appointment: Appointment) => (
                       <Card
                         key={appointment.id}
                         className="border-l-4 border-l-blue-500"
@@ -256,7 +266,7 @@ const Appointments = () => {
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-semibold">
-                              {appointment.doctors.name}
+                              {appointment.doctor?.name || "Doctor"}
                             </h3>
                             <Badge
                               className={getStatusColor(appointment.status)}
@@ -265,9 +275,9 @@ const Appointments = () => {
                             </Badge>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            {appointment.doctors.specialty}
+                            {appointment.doctor?.specialization || "Specialist"}
                           </p>
-                          <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-4 text-sm mb-4">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
                               {new Date(
@@ -280,9 +290,21 @@ const Appointments = () => {
                             </div>
                           </div>
                           {appointment.notes && (
-                            <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
+                            <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">
                               <strong>Notes:</strong> {appointment.notes}
                             </p>
+                          )}
+                          {appointment.status === "scheduled" && (
+                            <Button
+                              onClick={() =>
+                                navigate(`/video-call/${appointment.id}`)
+                              }
+                              size="sm"
+                              className="w-full bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Video className="w-4 h-4 mr-2" />
+                              Start Video Call
+                            </Button>
                           )}
                         </CardContent>
                       </Card>

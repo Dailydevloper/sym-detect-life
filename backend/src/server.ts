@@ -16,6 +16,7 @@ import appointmentRoutes from "./routes/appointment.routes";
 import healthRecordRoutes from "./routes/health-record.routes";
 import symptomCheckRoutes from "./routes/symptom-check.routes";
 import notificationRoutes from "./routes/notification.routes";
+import videoCallRoutes from "./routes/video-call.routes";
 
 const app: Express = express();
 
@@ -47,6 +48,7 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/health-records", healthRecordRoutes);
 app.use("/api/symptom-checks", symptomCheckRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/video-calls", videoCallRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
