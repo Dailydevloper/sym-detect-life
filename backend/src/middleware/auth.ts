@@ -21,7 +21,7 @@ export const authenticate = async (
 
     // Get user from database
     const result = await query(
-      "SELECT id, email, full_name, avatar_url, email_verified, created_at, updated_at FROM users WHERE id = $1",
+      "SELECT id, email, full_name, avatar_url, email_verified, role, created_at, updated_at FROM users WHERE id = $1",
       [decoded.userId],
     );
 
@@ -50,7 +50,7 @@ export const optionalAuth = async (
       const decoded = verifyToken(token);
 
       const result = await query(
-        "SELECT id, email, full_name, avatar_url, email_verified, created_at, updated_at FROM users WHERE id = $1",
+        "SELECT id, email, full_name, avatar_url, email_verified, role, created_at, updated_at FROM users WHERE id = $1",
         [decoded.userId],
       );
 
@@ -64,4 +64,22 @@ export const optionalAuth = async (
     // Ignore errors for optional auth
     next();
   }
+};
+
+export const requireRole = (requiredRole: string) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
+
+    if (req.user.role !== requiredRole) {
+      res
+        .status(403)
+        .json({ error: `Access denied. ${requiredRole} role required.` });
+      return;
+    }
+
+    next();
+  };
 };

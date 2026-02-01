@@ -5,8 +5,14 @@ import { authApi } from "@/lib/api";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<void>;
+  signIn: (email: string, password: string, role?: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName?: string,
+    role?: string,
+    additionalData?: any,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   googleSignIn: () => void;
 }
@@ -57,9 +63,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     checkAuth();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const response = await authApi.login({ email, password });
+  const signIn = async (email: string, password: string, role?: string) => {
+    const response = await authApi.login({ email, password, role });
     const { user, accessToken, refreshToken } = response.data;
+
+    console.log("SignIn response user:", user);
+    console.log("User role from server:", user.role);
 
     localStorage.setItem("access_token", accessToken);
     localStorage.setItem("refresh_token", refreshToken);
@@ -67,8 +76,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(user);
   };
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
-    const response = await authApi.register({ email, password, fullName });
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName?: string,
+    role?: string,
+    additionalData?: any,
+  ) => {
+    const response = await authApi.register({
+      email,
+      password,
+      fullName,
+      role,
+      ...additionalData,
+    });
     const { user, accessToken, refreshToken } = response.data;
 
     localStorage.setItem("access_token", accessToken);

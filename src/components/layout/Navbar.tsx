@@ -1,8 +1,7 @@
-
-import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import React from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,19 +9,20 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Heart, 
-  Activity, 
-  ShoppingCart, 
-  Calendar, 
-  BarChart3, 
-  FileText, 
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Heart,
+  Activity,
+  ShoppingCart,
+  Calendar,
+  BarChart3,
+  FileText,
   User,
-  LogOut
-} from 'lucide-react';
+  LogOut,
+  Stethoscope,
+} from "lucide-react";
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -35,26 +35,48 @@ const Navbar = () => {
       await signOut();
       toast({
         title: "Signed out",
-        description: "You've been signed out successfully."
+        description: "You've been signed out successfully.",
       });
-      navigate('/auth');
+      navigate("/auth");
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to sign out",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
 
   const isActive = (path: string) => location.pathname === path;
 
+  if (location.pathname.startsWith("/doctor")) {
+    return null;
+  }
+
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-    { path: '/symptom-checker', label: 'Symptom Checker', icon: Activity },
-    { path: '/medicine-store', label: 'Medicine Store', icon: ShoppingCart },
-    { path: '/appointments', label: 'Appointments', icon: Calendar },
-    { path: '/health-records', label: 'Records', icon: FileText },
+    ...(user?.role === "doctor"
+      ? [
+          {
+            path: "/doctor-dashboard",
+            label: "Doctor Dashboard",
+            icon: Stethoscope,
+          },
+        ]
+      : [
+          { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
+          {
+            path: "/symptom-checker",
+            label: "Symptom Checker",
+            icon: Activity,
+          },
+          {
+            path: "/medicine-store",
+            label: "Medicine Store",
+            icon: ShoppingCart,
+          },
+          { path: "/appointments", label: "Appointments", icon: Calendar },
+          { path: "/health-records", label: "Records", icon: FileText },
+        ]),
   ];
 
   return (
@@ -66,7 +88,9 @@ const Navbar = () => {
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                 <Heart className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">HealthCare AI</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
+                HealthCare AI
+              </span>
             </Link>
 
             {user && (
@@ -79,8 +103,8 @@ const Navbar = () => {
                       to={item.path}
                       className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         isActive(item.path)
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100'
-                          : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
+                          : "text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
                       }`}
                     >
                       <Icon className="w-4 h-4 mr-2" />
@@ -96,11 +120,19 @@ const Navbar = () => {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button
+                    variant="ghost"
+                    className="relative h-8 w-8 rounded-full"
+                  >
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.user_metadata?.avatar_url} alt="Avatar" />
+                      <AvatarImage
+                        src={user.user_metadata?.avatar_url}
+                        alt="Avatar"
+                      />
                       <AvatarFallback>
-                        {user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                        {user.user_metadata?.full_name?.charAt(0) ||
+                          user.email?.charAt(0) ||
+                          "U"}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -109,7 +141,7 @@ const Navbar = () => {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {user.user_metadata?.full_name || 'User'}
+                        {user.user_metadata?.full_name || "User"}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
                         {user.email}
@@ -117,13 +149,19 @@ const Navbar = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <BarChart3 className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/doctor-dashboard")}
+                  >
+                    <Stethoscope className="mr-2 h-4 w-4" />
+                    <span>Doctor Dashboard</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>

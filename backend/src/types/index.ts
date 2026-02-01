@@ -8,6 +8,7 @@ export interface User {
   avatar_url?: string;
   google_id?: string;
   email_verified: boolean;
+  role?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -27,6 +28,7 @@ export interface Profile {
 export interface JwtPayload {
   userId: string;
   email: string;
+  role?: string;
 }
 
 export type AuthRequest = Request & {

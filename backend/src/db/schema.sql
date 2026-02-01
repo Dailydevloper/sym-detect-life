@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   avatar_url TEXT,
   google_id TEXT UNIQUE, -- For Google OAuth
   email_verified BOOLEAN DEFAULT false,
+  role TEXT DEFAULT 'patient' CHECK (role IN ('patient', 'doctor', 'admin')),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -81,8 +82,11 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 -- Create doctors table
 CREATE TABLE IF NOT EXISTS public.doctors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE, -- Link to user account
+  full_name TEXT,
+  email TEXT,
   specialty TEXT NOT NULL,
+  license_number TEXT UNIQUE,
   experience_years INTEGER,
   rating DECIMAL(3,2) DEFAULT 0,
   bio TEXT,

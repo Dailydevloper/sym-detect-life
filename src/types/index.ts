@@ -4,6 +4,7 @@ export interface User {
   full_name?: string;
   avatar_url?: string;
   email_verified: boolean;
+  role?: "patient" | "doctor" | "admin";
   created_at: string;
   updated_at: string;
 }

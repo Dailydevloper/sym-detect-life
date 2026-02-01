@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import AuthLayout from "@/components/auth/AuthLayout";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+import { Heart } from "lucide-react";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -19,7 +20,11 @@ const Auth = () => {
 
   // Redirect if already authenticated
   if (!authLoading && user) {
-    return <Navigate to="/" replace />;
+    // Redirect based on user role
+    if (user.role === "doctor") {
+      return <Navigate to="/doctor-dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,13 +33,13 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        await signUp(email, password, fullName);
+        await signUp(email, password, fullName, "patient");
         toast({
           title: "Success!",
           description: "Your account has been created successfully.",
         });
       } else {
-        await signIn(email, password);
+        await signIn(email, password, "patient");
         toast({
           title: "Welcome back!",
           description: "You've been signed in successfully.",
@@ -135,6 +140,18 @@ const Auth = () => {
               ? "Already have an account? Sign in"
               : "Don't have an account? Sign up"}
           </button>
+        </div>
+
+        <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            Are you a medical professional?
+          </p>
+          <Link
+            to="/doctor-auth"
+            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
+          >
+            Sign in as Doctor →
+          </Link>
         </div>
       </form>
     </AuthLayout>

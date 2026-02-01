@@ -11,10 +11,30 @@ export const api = axios.create({
   withCredentials: true, // Send cookies with requests
 });
 
+// Create doctor axios instance with separate auth storage
+const doctorHttp = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  withCredentials: true,
+});
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+doctorHttp.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("doctor_access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,14 +49,25 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    const requestUrl = originalRequest?.url || "";
+    const isAuthRequest =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/register") ||
+      requestUrl.includes("/auth/refresh") ||
+      requestUrl.includes("/auth/logout");
+
     // If 401 and we haven't retried yet, try to refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRequest
+    ) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         if (!refreshToken) {
-          throw new Error("No refresh token");
+          return Promise.reject(error);
         }
 
         // Try to refresh the token
@@ -64,12 +95,65 @@ api.interceptors.response.use(
   },
 );
 
+doctorHttp.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    const requestUrl = originalRequest?.url || "";
+    const isAuthRequest =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/register") ||
+      requestUrl.includes("/auth/refresh") ||
+      requestUrl.includes("/auth/logout");
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRequest
+    ) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem("doctor_refresh_token");
+        if (!refreshToken) {
+          return Promise.reject(error);
+        }
+
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
+          refreshToken,
+        });
+
+        const { accessToken } = response.data;
+        localStorage.setItem("doctor_access_token", accessToken);
+
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return doctorHttp(originalRequest);
+      } catch (refreshError) {
+        localStorage.removeItem("doctor_access_token");
+        localStorage.removeItem("doctor_refresh_token");
+        localStorage.removeItem("doctor_user");
+        window.location.href = "/doctor-auth";
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 // API Methods
 export const authApi = {
-  register: (data: { email: string; password: string; fullName?: string }) =>
-    api.post("/auth/register", data),
+  register: (data: {
+    email: string;
+    password: string;
+    fullName?: string;
+    role?: string;
+    specialty?: string;
+    licenseNumber?: string;
+  }) => api.post("/auth/register", data),
 
-  login: (data: { email: string; password: string }) =>
+  login: (data: { email: string; password: string; role?: string }) =>
     api.post("/auth/login", data),
 
   logout: () => api.post("/auth/logout"),
@@ -79,6 +163,24 @@ export const authApi = {
   googleAuth: () => {
     window.location.href = `${API_URL}/auth/google`;
   },
+};
+
+export const doctorAuthApi = {
+  register: (data: {
+    email: string;
+    password: string;
+    fullName?: string;
+    role?: string;
+    specialty?: string;
+    licenseNumber?: string;
+  }) => doctorHttp.post("/auth/register", data),
+
+  login: (data: { email: string; password: string; role?: string }) =>
+    doctorHttp.post("/auth/login", data),
+
+  logout: () => doctorHttp.post("/auth/logout"),
+
+  getCurrentUser: () => doctorHttp.get("/auth/me"),
 };
 
 export const profileApi = {
@@ -208,6 +310,22 @@ export const notificationApi = {
   markAsRead: (id: string) => api.put(`/notifications/${id}/read`),
 
   markAllAsRead: () => api.put("/notifications/read-all"),
+};
+
+export const doctorPortalApi = {
+  getStats: () => doctorHttp.get("/doctor-portal/stats"),
+
+  getTodayAppointments: () =>
+    doctorHttp.get("/doctor-portal/appointments/today"),
+
+  getUpcomingAppointments: () =>
+    doctorHttp.get("/doctor-portal/appointments/upcoming"),
+
+  updateAppointmentStatus: (id: string, status: string) =>
+    doctorHttp.patch(`/doctor-portal/appointments/${id}/status`, { status }),
+
+  getPatientDetails: (patientId: string) =>
+    doctorHttp.get(`/doctor-portal/patients/${patientId}`),
 };
 
 export default api;

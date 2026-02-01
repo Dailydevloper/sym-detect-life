@@ -1,14 +1,16 @@
-
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import React from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredRole?: "patient" | "doctor" | "admin";
 }
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const { toast } = useToast();
 
   if (loading) {
     return (
@@ -20,6 +22,24 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Check role-based access
+  if (requiredRole && user.role !== requiredRole) {
+    // Show error toast
+    setTimeout(() => {
+      toast({
+        title: "Access Denied",
+        description: `This page requires ${requiredRole} access.`,
+        variant: "destructive",
+      });
+    }, 100);
+
+    // Redirect based on user role
+    if (user.role === "doctor") {
+      return <Navigate to="/doctor-dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
