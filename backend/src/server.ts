@@ -1,4 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from "express";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { config } from "./config";
@@ -19,6 +21,13 @@ import notificationRoutes from "./routes/notification.routes";
 import videoCallRoutes from "./routes/video-call.routes";
 
 const app: Express = express();
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: config.frontendUrl,
+    credentials: true,
+  },
+});
 
 // Middleware
 app.use(
@@ -50,6 +59,48 @@ app.use("/api/symptom-checks", symptomCheckRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/video-calls", videoCallRoutes);
 
+// Socket.io connection handling for WebRTC signaling
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Join a room for a specific call
+  socket.on("join-room", (roomId: string, userId: string) => {
+    socket.join(roomId);
+    console.log(`User ${userId} joined room ${roomId}`);
+    // Notify others in the room
+    socket.to(roomId).emit("user-joined", userId);
+  });
+
+  // WebRTC signaling: offer
+  socket.on("offer", (roomId: string, offer: unknown) => {
+    console.log(`Offer received for room ${roomId}`);
+    socket.to(roomId).emit("offer", offer);
+  });
+
+  // WebRTC signaling: answer
+  socket.on("answer", (roomId: string, answer: unknown) => {
+    console.log(`Answer received for room ${roomId}`);
+    socket.to(roomId).emit("answer", answer);
+  });
+
+  // WebRTC signaling: ICE candidate
+  socket.on("ice-candidate", (roomId: string, candidate: unknown) => {
+    console.log(`ICE candidate received for room ${roomId}`);
+    socket.to(roomId).emit("ice-candidate", candidate);
+  });
+
+  // Handle user leaving
+  socket.on("leave-room", (roomId: string, userId: string) => {
+    socket.leave(roomId);
+    console.log(`User ${userId} left room ${roomId}`);
+    socket.to(roomId).emit("user-left", userId);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error("Error:", err);
@@ -73,7 +124,7 @@ const startServer = async () => {
     await pool.query("SELECT NOW()");
     console.log("✅ Database connected successfully");
 
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`📝 Environment: ${config.nodeEnv}`);
     });

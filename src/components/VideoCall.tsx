@@ -1,138 +1,81 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import AgoraRTC, {
-  IAgoraRTCRemoteUser,
-  IMicrophoneAudioTrack,
-  ICameraVideoTrack,
-} from "agora-rtc-sdk-ng";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Loader2,
-  Phone,
-  PhoneOff,
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-} from "lucide-react";
+import { Loader2, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useWebRTC } from "@/hooks/useWebRTC";
 
 interface VideoCallProps {
-  channelName: string;
-  token: string;
-  uid: number;
+  roomId: string;
+  userId: string;
   appointmentId: string;
   onCallEnd?: () => void;
 }
 
 const VideoCall = ({
-  channelName,
-  token,
-  uid,
+  roomId,
+  userId,
   appointmentId,
   onCallEnd,
 }: VideoCallProps) => {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isCameraOn, setIsCameraOn] = useState(true);
-  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
   const { toast } = useToast();
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const agoraClient = useRef(
-    AgoraRTC.createClient({ mode: "rtc", codec: "h264" }),
-  );
-  const localAudioTrack = useRef<IMicrophoneAudioTrack | null>(null);
-  const localVideoTrack = useRef<ICameraVideoTrack | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const callStartTime = useRef<number>(Date.now());
-  const clientRef = useRef(agoraClient.current);
 
+  const {
+    localStream,
+    remoteStream,
+    isMicOn,
+    isCameraOn,
+    isConnected,
+    error,
+    toggleMic,
+    toggleCamera,
+    endCall,
+  } = useWebRTC({
+    roomId,
+    userId,
+    onRemoteStream: (stream) => {
+      console.log("Remote stream received");
+      toast({
+        title: "Connected",
+        description: "Other participant has joined the call",
+      });
+    },
+    onUserLeft: () => {
+      toast({
+        title: "User Left",
+        description: "The other participant has left the call",
+      });
+    },
+  });
+
+  // Set local video stream
   useEffect(() => {
-    const client = (clientRef.current = agoraClient.current);
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
 
-    const initializeCall = async () => {
-      try {
-        // Handle remote user joined
-        client.on("user-published", async (user, mediaType) => {
-          await client.subscribe(user, mediaType);
-          if (mediaType === "video") {
-            setRemoteUsers((prev) => [
-              ...prev.filter((u) => u.uid !== user.uid),
-              user,
-            ]);
-          }
-          if (mediaType === "audio") {
-            user.audioTrack?.play();
-          }
-        });
+  // Set remote video stream
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
-        // Handle remote user left
-        client.on("user-unpublished", (user) => {
-          setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
-        });
-
-        // Join channel
-        await client.join(
-          process.env.REACT_APP_AGORA_APP_ID || "",
-          channelName,
-          token,
-          uid,
-        );
-
-        // Create and publish local tracks
-        const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-        const videoTrack = await AgoraRTC.createCameraVideoTrack();
-
-        localAudioTrack.current = audioTrack;
-        localVideoTrack.current = videoTrack;
-
-        await client.publish([audioTrack, videoTrack]);
-
-        // Play local video
-        if (containerRef.current) {
-          videoTrack.play("local-user");
-        }
-
-        setIsInitialized(true);
-        setIsLoading(false);
-        toast({
-          title: "Call Started",
-          description: "Video call connected successfully",
-        });
-      } catch (error: unknown) {
-        console.error("Failed to initialize call:", error);
-        const message =
-          error instanceof Error ? error.message : "Failed to start video call";
-        toast({
-          title: "Connection Error",
-          description: message,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-      }
-    };
-
-    initializeCall();
-
-    // Clean up on unmount
-    return () => {
-      // Use the captured client ref
-      const audio = localAudioTrack.current;
-      const video = localVideoTrack.current;
-
-      const cleanup = async () => {
-        if (audio) {
-          audio.close();
-        }
-        if (video) {
-          video.close();
-        }
-        await clientRef.current.leave();
-      };
-      cleanup();
-    };
-  }, [channelName, token, uid, toast]);
+  // Show error if any
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Connection Error",
+        description: error,
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
   // Update call duration
   useEffect(() => {
@@ -143,66 +86,29 @@ const VideoCall = ({
     return () => clearInterval(interval);
   }, []);
 
-  const toggleMic = async () => {
-    if (localAudioTrack.current) {
-      if (isMicOn) {
-        await localAudioTrack.current.setEnabled(false);
-      } else {
-        await localAudioTrack.current.setEnabled(true);
-      }
-      setIsMicOn(!isMicOn);
-    }
-  };
+  const handleEndCall = async () => {
+    endCall();
 
-  const toggleCamera = async () => {
-    if (localVideoTrack.current) {
-      if (isCameraOn) {
-        await localVideoTrack.current.setEnabled(false);
-      } else {
-        await localVideoTrack.current.setEnabled(true);
-      }
-      setIsCameraOn(!isCameraOn);
-    }
-  };
-
-  const endCall = async () => {
+    // Notify backend that call ended
     try {
-      const client = agoraClient.current;
-
-      if (localAudioTrack.current) {
-        localAudioTrack.current.close();
-      }
-      if (localVideoTrack.current) {
-        localVideoTrack.current.close();
-      }
-
-      await client.leave();
-
-      // Log call end to backend
-      try {
-        await fetch(`/api/video-calls/end/${appointmentId}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-      } catch (error) {
-        console.error("Failed to log call end:", error);
-      }
-
-      toast({
-        title: "Call Ended",
-        description: `Call duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+      await fetch(`/api/video-calls/end/${appointmentId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       });
+    } catch (err) {
+      console.error("Failed to update call status:", err);
+    }
 
-      onCallEnd?.();
-    } catch (error: unknown) {
-      console.error("Failed to end call:", error);
-      toast({
-        title: "Error",
-        description: "Failed to end call",
-        variant: "destructive",
-      });
+    toast({
+      title: "Call Ended",
+      description: `Call duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+    });
+
+    if (onCallEnd) {
+      onCallEnd();
     }
   };
 
@@ -213,7 +119,7 @@ const VideoCall = ({
     return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
-  if (isLoading) {
+  if (!localStream) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-900">
         <div className="text-center space-y-4">
@@ -230,42 +136,52 @@ const VideoCall = ({
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
         {/* Local User */}
         <div className="bg-gray-800 rounded-lg overflow-hidden relative">
-          <div
-            id="local-user"
-            className="w-full h-full"
-            ref={containerRef}
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
             style={{ minHeight: "300px" }}
           />
           <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 px-3 py-1 rounded-full">
             <p className="text-white text-sm">You</p>
           </div>
+          {!isCameraOn && (
+            <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+              <VideoOff className="w-12 h-12 text-gray-400" />
+            </div>
+          )}
         </div>
 
-        {/* Remote Users */}
-        {remoteUsers.map((user) => (
-          <div
-            key={user.uid}
-            className="bg-gray-800 rounded-lg overflow-hidden relative"
-          >
-            <div
-              id={`remote-user-${user.uid}`}
-              className="w-full h-full"
-              style={{ minHeight: "300px" }}
-            />
-            <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 px-3 py-1 rounded-full">
-              <p className="text-white text-sm">Doctor</p>
+        {/* Remote User */}
+        <div className="bg-gray-800 rounded-lg overflow-hidden relative">
+          {remoteStream ? (
+            <>
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+                style={{ minHeight: "300px" }}
+              />
+              <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 px-3 py-1 rounded-full">
+                <p className="text-white text-sm">
+                  {isConnected ? "Connected" : "Doctor"}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-400">
+                  Waiting for other participant...
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
-
-        {/* Placeholder for remote user */}
-        {remoteUsers.length === 0 && (
-          <div className="bg-gray-800 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-400">Waiting for doctor to join...</p>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Call Controls */}
@@ -307,15 +223,26 @@ const VideoCall = ({
             <Button
               size="lg"
               variant="destructive"
-              onClick={endCall}
+              onClick={handleEndCall}
               className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
             >
               <PhoneOff className="w-5 h-5" />
             </Button>
           </div>
 
-          {/* Empty space for alignment */}
-          <div className="w-20" />
+          {/* Status indicator */}
+          <div className="w-20 text-right">
+            <div
+              className={`inline-flex items-center gap-2 ${isConnected ? "text-green-400" : "text-yellow-400"}`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-400" : "bg-yellow-400"} animate-pulse`}
+              />
+              <span className="text-xs">
+                {isConnected ? "Connected" : "Connecting"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

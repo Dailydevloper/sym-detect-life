@@ -12,40 +12,35 @@ const VideoCallPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [token, setToken] = useState<string | null>(null);
-  const [channelName, setChannelName] = useState<string | null>(null);
-  const [uid, setUid] = useState<number | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const generateToken = async () => {
+    const initializeRoom = async () => {
       if (!appointmentId || !user) return;
 
       try {
         setIsLoading(true);
 
-        // Generate Agora token from backend
-        const response = await fetch("/api/video-calls/token", {
+        // Get room ID from backend
+        const response = await fetch("/api/video-calls/room", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
           body: JSON.stringify({
-            channelName: `appointment-${appointmentId}`,
-            uid: parseInt(user.id.substring(0, 8), 16) % 2147483647, // Convert UUID to valid UID
+            appointmentId,
           }),
         });
 
         if (!response.ok) {
-          throw new Error("Failed to generate token");
+          throw new Error("Failed to initialize room");
         }
 
         const data = await response.json();
-        setToken(data.token);
-        setChannelName(data.channelName);
-        setUid(data.uid);
+        setRoomId(data.roomId);
 
         // Start call on backend
         await fetch("/api/video-calls/start", {
@@ -73,7 +68,7 @@ const VideoCallPage = () => {
       }
     };
 
-    generateToken();
+    initializeRoom();
   }, [appointmentId, user, toast]);
 
   const handleCallEnd = () => {
@@ -99,7 +94,7 @@ const VideoCallPage = () => {
     );
   }
 
-  if (isLoading || !token || !channelName || uid === null) {
+  if (isLoading || !roomId || !user) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -134,9 +129,8 @@ const VideoCallPage = () => {
       {/* Video Call Container */}
       <div className="flex-1 p-4">
         <VideoCall
-          channelName={channelName}
-          token={token}
-          uid={uid}
+          roomId={roomId}
+          userId={user.id}
           appointmentId={appointmentId!}
           onCallEnd={handleCallEnd}
         />

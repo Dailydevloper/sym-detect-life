@@ -1,42 +1,41 @@
 import { Router, Response } from "express";
-import { RtcTokenBuilder, RtcRole } from "agora-access-token";
 import pool from "../db";
 import { authenticate } from "../middleware/auth";
 import { AuthRequest } from "../types";
 
 const router = Router();
 
-// Generate Agora token for video call
-router.post("/token", authenticate, async (req: AuthRequest, res: Response) => {
+// Generate room ID for video call (no token needed for WebRTC)
+router.post("/room", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { channelName, uid } = req.body;
-    const appId = process.env.AGORA_APP_ID;
-    const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+    const { appointmentId } = req.body;
+    const userId = req.user?.id;
 
-    if (!appId || !appCertificate) {
+    if (!appointmentId || !userId) {
       return res
         .status(400)
-        .json({ error: "Agora credentials not configured" });
+        .json({ error: "appointmentId and userId required" });
     }
 
-    if (!channelName || !uid) {
-      return res.status(400).json({ error: "channelName and uid required" });
-    }
-
-    // Generate token using RtcTokenBuilder
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      appId,
-      appCertificate,
-      channelName,
-      uid,
-      RtcRole.PUBLISHER,
-      86400,
+    // Verify appointment belongs to user or they are the doctor
+    const appointment = await pool.query(
+      `SELECT a.*, d.user_id as doctor_id FROM appointments a 
+       LEFT JOIN doctors d ON a.doctor_id = d.id 
+       WHERE a.id = $1 AND (a.user_id = $2 OR d.user_id = $2)`,
+      [appointmentId, userId],
     );
 
-    res.json({ token, channelName, uid });
+    if (appointment.rows.length === 0) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Create a room ID based on appointment ID
+    const roomId = `appointment-${appointmentId}`;
+
+    res.json({ roomId, appointmentId, userId });
   } catch (error) {
-    console.error("Token generation error:", error);
-    res.status(500).json({ error: "Failed to generate token" });
+    console.error("Room generation error:", error);
+    res.status(500).json({ error: "Failed to generate room" });
   }
 });
 
