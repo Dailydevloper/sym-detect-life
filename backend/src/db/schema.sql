@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   avatar_url TEXT,
   google_id TEXT UNIQUE, -- For Google OAuth
   email_verified BOOLEAN DEFAULT false,
+  role TEXT DEFAULT 'patient' CHECK (role IN ('patient', 'doctor', 'admin')),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -81,8 +82,11 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 -- Create doctors table
 CREATE TABLE IF NOT EXISTS public.doctors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE, -- Link to user account
+  full_name TEXT,
+  email TEXT,
   specialty TEXT NOT NULL,
+  license_number TEXT UNIQUE,
   experience_years INTEGER,
   rating DECIMAL(3,2) DEFAULT 0,
   bio TEXT,
@@ -150,6 +154,23 @@ CREATE INDEX IF NOT EXISTS idx_appointments_doctor_id ON public.appointments(doc
 CREATE INDEX IF NOT EXISTS idx_health_records_user_id ON public.health_records(user_id);
 CREATE INDEX IF NOT EXISTS idx_symptom_checks_user_id ON public.symptom_checks(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
+
+-- Create video calls table for storing call records
+CREATE TABLE IF NOT EXISTS public.video_calls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  appointment_id UUID REFERENCES public.appointments(id) ON DELETE CASCADE,
+  initiator_id UUID REFERENCES public.users(id),
+  status TEXT DEFAULT 'pending', -- 'pending', 'active', 'ended', 'missed'
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+  duration_seconds INTEGER,
+  recording_url TEXT, -- URL to stored recording if available
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_video_calls_appointment_id ON public.video_calls(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_video_calls_initiator_id ON public.video_calls(initiator_id);
 
 -- Insert sample medicines data
 INSERT INTO public.medicines (name, description, price, stock_quantity, category, manufacturer, requires_prescription, image_url) VALUES

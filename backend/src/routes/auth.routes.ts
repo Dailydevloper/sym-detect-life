@@ -17,15 +17,36 @@ router.post(
     body("email").isEmail().normalizeEmail(),
     body("password").isLength({ min: 6 }),
     body("fullName").optional().trim(),
+    body("role").optional().isIn(["patient", "doctor"]),
+    body("specialty").optional().trim(),
+    body("licenseNumber").optional().trim(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.error("Registration validation errors:", errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password, fullName } = req.body;
+      const {
+        email,
+        password,
+        fullName,
+        role = "patient",
+        specialty,
+        licenseNumber,
+      } = req.body;
+
+      // Validate doctor-specific fields
+      if (role === "doctor") {
+        if (!specialty || !licenseNumber) {
+          return res.status(400).json({
+            error:
+              "Specialty and license number are required for doctor registration",
+          });
+        }
+      }
 
       // Check if user exists
       const existingUser = await query(
@@ -40,12 +61,12 @@ router.post(
       // Hash password
       const passwordHash = await hashPassword(password);
 
-      // Create user
+      // Create user with role
       const result = await query(
-        `INSERT INTO users (email, password_hash, full_name, email_verified) 
-         VALUES ($1, $2, $3, false) 
-         RETURNING id, email, full_name, avatar_url, email_verified, created_at`,
-        [email, passwordHash, fullName || null],
+        `INSERT INTO users (email, password_hash, full_name, email_verified, role) 
+         VALUES ($1, $2, $3, false, $4) 
+         RETURNING id, email, full_name, avatar_url, email_verified, role, created_at`,
+        [email, passwordHash, fullName || null, role],
       );
 
       const user = result.rows[0];
@@ -57,14 +78,79 @@ router.post(
         [user.id, email, fullName || null],
       );
 
+      // If doctor, create doctor profile
+      if (role === "doctor") {
+        const columnResult = await query(
+          "SELECT column_name FROM information_schema.columns WHERE table_name = 'doctors'",
+        );
+        const columns = columnResult.rows.map((row) => row.column_name);
+
+        const hasName = columns.includes("name");
+        const hasFullName = columns.includes("full_name");
+        const hasEmail = columns.includes("email");
+        const hasLicense = columns.includes("license_number");
+
+        if (hasName && hasFullName) {
+          await query(
+            `INSERT INTO doctors (user_id, name, full_name, specialty, license_number, email)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              user.id,
+              fullName || "Doctor",
+              fullName || null,
+              specialty,
+              hasLicense ? licenseNumber : null,
+              hasEmail ? email : null,
+            ],
+          );
+        } else if (hasName) {
+          await query(
+            `INSERT INTO doctors (user_id, name, specialty, license_number, email)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+              user.id,
+              fullName || "Doctor",
+              specialty,
+              hasLicense ? licenseNumber : null,
+              hasEmail ? email : null,
+            ],
+          );
+        } else if (hasFullName) {
+          await query(
+            `INSERT INTO doctors (user_id, full_name, specialty, license_number, email)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+              user.id,
+              fullName || null,
+              specialty,
+              hasLicense ? licenseNumber : null,
+              hasEmail ? email : null,
+            ],
+          );
+        } else {
+          await query(
+            `INSERT INTO doctors (user_id, specialty, license_number, email)
+             VALUES ($1, $2, $3, $4)`,
+            [
+              user.id,
+              specialty,
+              hasLicense ? licenseNumber : null,
+              hasEmail ? email : null,
+            ],
+          );
+        }
+      }
+
       // Generate tokens
       const accessToken = generateAccessToken({
         userId: user.id,
         email: user.email,
+        role: user.role,
       });
       const refreshToken = generateRefreshToken({
         userId: user.id,
         email: user.email,
+        role: user.role,
       });
 
       res.status(201).json({
@@ -72,7 +158,24 @@ router.post(
         accessToken,
         refreshToken,
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const dbError = error as { code?: string; constraint?: string };
+      if (dbError.code === "23505") {
+        if (dbError.constraint?.includes("users_email")) {
+          return res.status(400).json({ error: "Email already registered" });
+        }
+        if (dbError.constraint?.includes("idx_doctors_license_number")) {
+          return res
+            .status(400)
+            .json({ error: "License number already registered" });
+        }
+        return res.status(400).json({ error: "Duplicate record" });
+      }
+      if (dbError.code === "23502") {
+        return res
+          .status(400)
+          .json({ error: "Missing required registration fields" });
+      }
       console.error("Register error:", error);
       res.status(500).json({ error: "Registration failed" });
     }
@@ -82,7 +185,11 @@ router.post(
 // Login
 router.post(
   "/login",
-  [body("email").isEmail().normalizeEmail(), body("password").notEmpty()],
+  [
+    body("email").isEmail().normalizeEmail(),
+    body("password").notEmpty(),
+    body("role").optional().isIn(["patient", "doctor"]),
+  ],
   async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -90,11 +197,11 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password } = req.body;
+      const { email, password, role } = req.body;
 
       // Get user
       const result = await query(
-        "SELECT id, email, password_hash, full_name, avatar_url, email_verified FROM users WHERE email = $1",
+        "SELECT id, email, password_hash, full_name, avatar_url, email_verified, role FROM users WHERE email = $1",
         [email],
       );
 
@@ -103,6 +210,19 @@ router.post(
       }
 
       const user = result.rows[0];
+
+      // Check if role matches (if provided)
+      console.log(
+        `Login attempt: email=${email}, requestedRole=${role}, userRole=${user.role}`,
+      );
+      if (role && user.role !== role) {
+        console.log(
+          `Role mismatch: user has role '${user.role}' but tried to login with role '${role}'`,
+        );
+        return res.status(401).json({
+          error: `This email is registered as a ${user.role}. Please use the ${user.role} login page.`,
+        });
+      }
 
       // Check password
       if (!user.password_hash) {
@@ -120,10 +240,12 @@ router.post(
       const accessToken = generateAccessToken({
         userId: user.id,
         email: user.email,
+        role: user.role,
       });
       const refreshToken = generateRefreshToken({
         userId: user.id,
         email: user.email,
+        role: user.role,
       });
 
       // Remove password hash from response
