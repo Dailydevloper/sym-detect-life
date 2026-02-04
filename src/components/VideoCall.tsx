@@ -87,24 +87,43 @@ const VideoCall = ({
   }, []);
 
   const handleEndCall = async () => {
+    const duration = Math.floor((Date.now() - callStartTime.current) / 1000);
+
     endCall();
 
     // Notify backend that call ended
     try {
-      await fetch(`/api/video-calls/end/${appointmentId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        throw new Error("Authentication token not found");
+      }
+
+      // Call the end endpoint with call ID or appointment ID
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/video-calls/end/${appointmentId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            duration,
+            endTime: new Date().toISOString(),
+          }),
         },
-      });
+      );
+
+      if (!response.ok) {
+        console.warn("Failed to update call status");
+      }
     } catch (err) {
       console.error("Failed to update call status:", err);
     }
 
     toast({
       title: "Call Ended",
-      description: `Call duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+      description: `Call duration: ${Math.floor(duration / 60)}m ${duration % 60}s`,
     });
 
     if (onCallEnd) {

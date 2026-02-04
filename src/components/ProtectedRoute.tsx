@@ -37,7 +37,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
 
     // Redirect based on user role
     if (user.role === "doctor") {
-      return <Navigate to="/doctor-dashboard" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }

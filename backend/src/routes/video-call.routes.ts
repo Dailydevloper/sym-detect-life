@@ -1,5 +1,5 @@
 import { Router, Response } from "express";
-import pool from "../db";
+import { pool, query } from "../db";
 import { authenticate } from "../middleware/auth";
 import { AuthRequest } from "../types";
 
@@ -88,15 +88,16 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const { callId } = req.params;
+      const { duration } = req.body;
       const userId = req.user?.id;
 
       // Update call status
       const result = await pool.query(
         `UPDATE video_calls 
-       SET status = 'ended', ended_at = NOW()
-       WHERE id = $1
+       SET status = 'ended', ended_at = NOW(), duration_seconds = $1
+       WHERE id = $2
        RETURNING *`,
-        [callId],
+        [duration, callId],
       );
 
       if (result.rows.length === 0) {

@@ -1,41 +1,34 @@
 # Role-Based Authentication Setup Guide
 
-This guide explains the new role-based authentication system that separates
-doctors and patients with different login pages and dashboards.
+This guide explains the role-based authentication system and protected routing.
 
 ## Features Implemented
 
-### 1. Separate Authentication Pages
+### 1. Authentication Page
 
-- **Patient Login**: `/auth` - For regular users/patients
-- **Doctor Login**: `/doctor-auth` - For healthcare professionals with
-  specialty and license number fields
+- **Login**: `/auth` - For regular users/patients
 
 ### 2. Role-Based Routing
 
-- Patients are redirected to `/dashboard` after login
-- Doctors are redirected to `/doctor-dashboard` after login
+- Users are redirected to `/dashboard` after login
 - Routes are protected based on user roles
 
 ### 3. Database Changes
 
 - Added `role` column to `users` table with values: 'patient', 'doctor', 'admin'
-- Doctors table now links to users via `user_id` foreign key
-- Added `specialty` and `license_number` fields to doctors table
 
 ### 4. Backend Updates
 
-- Registration endpoint accepts `role`, `specialty`, and `licenseNumber` parameters
-- Login endpoint validates role and provides appropriate error messages
+- Registration endpoint accepts patient fields
+- Login endpoint validates credentials
 - JWT tokens now include role information
-- Doctor portal routes protected with `requireRole('doctor')` middleware
+  -- Role-protected routes handled with `requireRole(...)` middleware
 
 ### 5. Frontend Updates
 
-- Separate `DoctorAuth` page with doctor-specific fields
 - Updated `useAuth` hook to handle role-based authentication
 - `ProtectedRoute` component now supports role-based access control
-- Navbar shows different menu items based on user role
+- Navbar shows shared menu items
 
 ## Database Migration
 
@@ -76,15 +69,6 @@ The migration script will:
 await signUp(email, password, fullName, "patient");
 ```
 
-### Doctor Registration
-
-```typescript
-await signUp(email, password, fullName, "doctor", {
-  specialty: "Cardiology",
-  licenseNumber: "MD12345",
-});
-```
-
 ## Login Flow
 
 ### Patient Login
@@ -94,39 +78,21 @@ await signIn(email, password, "patient");
 // Redirects to /dashboard
 ```
 
-### Doctor Login
-
-```typescript
-await signIn(email, password, "doctor");
-// Redirects to /doctor-dashboard
-```
-
 ## API Endpoints
 
 ### Authentication
 
-- `POST /api/auth/register` - Register new user (patient or doctor)
-  - Body: `{ email, password, fullName, role, specialty?, licenseNumber? }`
+- `POST /api/auth/register` - Register new user
+  - Body: `{ email, password, fullName }`
 - `POST /api/auth/login` - Login user
-  - Body: `{ email, password, role? }`
+  - Body: `{ email, password }`
   - Returns user object with role and appropriate tokens
-
-### Doctor Portal (Protected)
-
-All doctor portal routes require authentication and 'doctor' role:
-
-- `GET /api/doctor-portal/stats` - Dashboard statistics
-- `GET /api/doctor-portal/appointments/today` - Today's appointments
-- `GET /api/doctor-portal/appointments/upcoming` - Upcoming appointments
-- `PATCH /api/doctor-portal/appointments/:id/status` - Update appointment status
-- `GET /api/doctor-portal/patients/:patientId` - Patient details
 
 ## Frontend Routes
 
 ### Public Routes
 
 - `/auth` - Patient authentication
-- `/doctor-auth` - Doctor authentication
 
 ### Patient Routes (role: 'patient')
 
@@ -137,40 +103,20 @@ All doctor portal routes require authentication and 'doctor' role:
 - `/health-records` - Medical history
 - `/profile` - User profile
 
-### Doctor Routes (role: 'doctor')
-
-- `/doctor-dashboard` - Doctor dashboard with appointments and statistics
-
 ### Common Protected Routes
 
-- `/video-call/:appointmentId` - Video consultation (both roles)
-- `/profile` - User profile (both roles)
+- `/video-call/:appointmentId` - Video consultation
+- `/profile` - User profile
 
 ## Role Validation
 
 ### Frontend
 
-The `ProtectedRoute` component checks user roles:
-
-```tsx
-<Route
-  path="/doctor-dashboard"
-  element={
-    <ProtectedRoute requiredRole="doctor">
-      <DoctorDashboard />
-    </ProtectedRoute>
-  }
-/>
-```
+The `ProtectedRoute` component checks user roles for restricted pages.
 
 ### Backend
 
-The `requireRole` middleware protects API routes:
-
-```typescript
-router.use(authenticate);
-router.use(requireRole("doctor"));
-```
+The `requireRole` middleware protects API routes as needed.
 
 ## Navbar Behavior
 
@@ -184,31 +130,13 @@ The navigation menu adapts based on user role:
 - Appointments
 - Records
 
-**Doctors see:**
-
-- Doctor Dashboard (only)
+All users use the shared navigation menu.
 
 ## Error Handling
 
-### Wrong Role Login
-
-If a user tries to login with the wrong role page:
-
-```
-Response: "This email is registered as a patient. Please use the patient login page."
-```
-
 ### Unauthorized Access
 
-If a patient tries to access `/doctor-dashboard`:
-
-- Shows "Access Denied" toast
-- Redirects to `/dashboard`
-
-If a doctor tries to access `/dashboard`:
-
-- Shows "Access Denied" toast
-- Redirects to `/doctor-dashboard`
+Access-denied cases redirect users to `/dashboard`.
 
 ## Testing the System
 
@@ -220,19 +148,11 @@ If a doctor tries to access `/dashboard`:
 4. Click "Sign Up"
 5. Should redirect to patient dashboard
 
-### 2. Register a Doctor
-
-1. Go to http://localhost:5173/doctor-auth
-2. Click "Sign Up"
-3. Fill in email, password, full name, specialty, license number
-4. Click "Sign Up"
-5. Should redirect to doctor dashboard
-
-### 3. Test Role Protection
+### 2. Test Role Protection
 
 1. Login as a patient
-2. Try to access http://localhost:5173/doctor-dashboard
-3. Should show error and redirect to patient dashboard
+2. Try to access a patient-only route
+3. Should show error and redirect to dashboard
 
 ## Environment Variables
 
@@ -249,13 +169,9 @@ JWT_SECRET=your_secret_key
 
 ## Troubleshooting
 
-### "Doctor profile not found" error
+### Role assignment issues
 
-This means the user has role='doctor' but no entry in the doctors table.
-This happens if:
-
-- Database migration wasn't run
-- Doctor registration failed to create doctor profile
+If roles are incorrect, rerun migrations and verify the `users.role` values.
 
 Solution: Re-register the doctor or manually link the user to a doctor record.
 

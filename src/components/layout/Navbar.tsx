@@ -21,7 +21,6 @@ import {
   FileText,
   User,
   LogOut,
-  Stethoscope,
 } from "lucide-react";
 
 const Navbar = () => {
@@ -54,29 +53,19 @@ const Navbar = () => {
   }
 
   const navItems = [
-    ...(user?.role === "doctor"
-      ? [
-          {
-            path: "/doctor-dashboard",
-            label: "Doctor Dashboard",
-            icon: Stethoscope,
-          },
-        ]
-      : [
-          { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
-          {
-            path: "/symptom-checker",
-            label: "Symptom Checker",
-            icon: Activity,
-          },
-          {
-            path: "/medicine-store",
-            label: "Medicine Store",
-            icon: ShoppingCart,
-          },
-          { path: "/appointments", label: "Appointments", icon: Calendar },
-          { path: "/health-records", label: "Records", icon: FileText },
-        ]),
+    { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
+    {
+      path: "/symptom-checker",
+      label: "Symptom Checker",
+      icon: Activity,
+    },
+    {
+      path: "/medicine-store",
+      label: "Medicine Store",
+      icon: ShoppingCart,
+    },
+    { path: "/appointments", label: "Appointments", icon: Calendar },
+    { path: "/health-records", label: "Records", icon: FileText },
   ];
 
   return (
@@ -156,12 +145,6 @@ const Navbar = () => {
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <BarChart3 className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => navigate("/doctor-dashboard")}
-                  >
-                    <Stethoscope className="mr-2 h-4 w-4" />
-                    <span>Doctor Dashboard</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
