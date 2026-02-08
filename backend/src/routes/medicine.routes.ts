@@ -8,7 +8,9 @@ const router = Router();
 // Get all medicines (public access)
 router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const result = await query("SELECT * FROM medicines ORDER BY name");
+    const result = await query(
+      "SELECT DISTINCT ON (name, manufacturer) * FROM medicines ORDER BY name, manufacturer",
+    );
 
     res.json(result.rows);
   } catch (error) {

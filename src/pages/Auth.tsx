@@ -22,7 +22,7 @@ const Auth = () => {
   if (!authLoading && user) {
     // Redirect based on user role
     if (user.role === "doctor") {
-      return <Navigate to="/doctor-dashboard" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }
@@ -146,12 +146,6 @@ const Auth = () => {
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Are you a medical professional?
           </p>
-          <Link
-            to="/doctor-auth"
-            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
-          >
-            Sign in as Doctor →
-          </Link>
         </div>
       </form>
     </AuthLayout>

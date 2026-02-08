@@ -33,6 +33,7 @@ export const authenticate = async (
     req.user = result.rows[0];
     next();
   } catch (error) {
+    console.error("Auth error:", error);
     res.status(401).json({ error: "Invalid or expired token" });
   }
 };

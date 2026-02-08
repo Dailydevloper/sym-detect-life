@@ -156,13 +156,15 @@ const Appointments = () => {
                                 doctor.avatar_url ||
                                 "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100"
                               }
-                              alt={doctor.name}
+                              alt={doctor.full_name || doctor.name}
                               className="w-12 h-12 rounded-full object-cover"
                             />
                             <div className="flex-1">
-                              <h3 className="font-semibold">{doctor.name}</h3>
+                              <h3 className="font-semibold">
+                                {doctor.full_name || doctor.name}
+                              </h3>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {doctor.specialty}
+                                {doctor.specialty || doctor.specialization}
                               </p>
                               <div className="flex items-center gap-2 mt-1">
                                 <div className="flex items-center gap-1">
@@ -266,7 +268,9 @@ const Appointments = () => {
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-semibold">
-                              {appointment.doctor?.name || "Doctor"}
+                              {appointment.doctor?.full_name ||
+                                appointment.doctor?.name ||
+                                "Doctor"}
                             </h3>
                             <Badge
                               className={getStatusColor(appointment.status)}
@@ -275,7 +279,9 @@ const Appointments = () => {
                             </Badge>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            {appointment.doctor?.specialization || "Specialist"}
+                            {appointment.doctor?.specialty ||
+                              appointment.doctor?.specialization ||
+                              "Specialist"}
                           </p>
                           <div className="flex items-center gap-4 text-sm mb-4">
                             <div className="flex items-center gap-1">

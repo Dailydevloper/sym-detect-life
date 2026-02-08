@@ -9,7 +9,7 @@ const router = Router();
 router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const result = await query(
-      "SELECT * FROM doctors ORDER BY rating DESC, name",
+      "SELECT DISTINCT ON (full_name, specialty) * FROM doctors ORDER BY full_name, specialty, rating DESC",
     );
 
     res.json(result.rows);

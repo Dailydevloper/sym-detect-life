@@ -29,10 +29,10 @@ export interface Medicine {
   stock_quantity: number;
   category?: string;
   manufacturer?: string;
-  prescription_required: boolean;
+  requires_prescription: boolean;
   image_url?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CartItem {
@@ -68,9 +68,11 @@ export interface OrderItem {
 
 export interface Doctor {
   id: string;
-  name: string;
-  specialization: string;
-  qualification: string;
+  full_name: string;
+  name?: string; // Deprecated: use full_name
+  specialty: string;
+  specialization?: string; // Deprecated: use specialty
+  qualification?: string;
   experience_years: number;
   consultation_fee: number;
   avatar_url?: string;
@@ -79,8 +81,8 @@ export interface Doctor {
   available_time_start?: string;
   available_time_end?: string;
   rating?: number;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Appointment {
@@ -113,11 +115,20 @@ export interface SymptomCheck {
   id: string;
   user_id: string;
   symptoms: string[];
-  severity: string;
-  duration: string;
-  additional_info?: string;
-  ai_response?: string;
+  ai_diagnosis?: string;
+  recommendations?: string;
+  severity_level?: string;
+  confidence?: number;
+  matched_symptoms?: string[];
   created_at: string;
+}
+
+export interface DiagnosisResult {
+  condition: string;
+  severity: "low" | "medium" | "high";
+  confidence: number;
+  recommendations: string[];
+  matchedSymptoms: string[];
 }
 
 export interface Notification {

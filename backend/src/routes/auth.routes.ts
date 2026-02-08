@@ -1,8 +1,12 @@
-import { Router, Response } from "express";
+import { Router, Response, Request } from "express";
 import { body, validationResult } from "express-validator";
 import { query } from "../db";
 import { hashPassword, comparePassword } from "../utils/password";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyToken,
+} from "../utils/jwt";
 import { authenticate } from "../middleware/auth";
 import { AuthRequest } from "../types";
 import passport from "passport";
@@ -17,9 +21,6 @@ router.post(
     body("email").isEmail().normalizeEmail(),
     body("password").isLength({ min: 6 }),
     body("fullName").optional().trim(),
-    body("role").optional().isIn(["patient", "doctor"]),
-    body("specialty").optional().trim(),
-    body("licenseNumber").optional().trim(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -29,24 +30,8 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const {
-        email,
-        password,
-        fullName,
-        role = "patient",
-        specialty,
-        licenseNumber,
-      } = req.body;
-
-      // Validate doctor-specific fields
-      if (role === "doctor") {
-        if (!specialty || !licenseNumber) {
-          return res.status(400).json({
-            error:
-              "Specialty and license number are required for doctor registration",
-          });
-        }
-      }
+      const { email, password, fullName } = req.body;
+      const role = "patient";
 
       // Check if user exists
       const existingUser = await query(
@@ -77,69 +62,6 @@ router.post(
          VALUES ($1, $2, $3)`,
         [user.id, email, fullName || null],
       );
-
-      // If doctor, create doctor profile
-      if (role === "doctor") {
-        const columnResult = await query(
-          "SELECT column_name FROM information_schema.columns WHERE table_name = 'doctors'",
-        );
-        const columns = columnResult.rows.map((row) => row.column_name);
-
-        const hasName = columns.includes("name");
-        const hasFullName = columns.includes("full_name");
-        const hasEmail = columns.includes("email");
-        const hasLicense = columns.includes("license_number");
-
-        if (hasName && hasFullName) {
-          await query(
-            `INSERT INTO doctors (user_id, name, full_name, specialty, license_number, email)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-              user.id,
-              fullName || "Doctor",
-              fullName || null,
-              specialty,
-              hasLicense ? licenseNumber : null,
-              hasEmail ? email : null,
-            ],
-          );
-        } else if (hasName) {
-          await query(
-            `INSERT INTO doctors (user_id, name, specialty, license_number, email)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [
-              user.id,
-              fullName || "Doctor",
-              specialty,
-              hasLicense ? licenseNumber : null,
-              hasEmail ? email : null,
-            ],
-          );
-        } else if (hasFullName) {
-          await query(
-            `INSERT INTO doctors (user_id, full_name, specialty, license_number, email)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [
-              user.id,
-              fullName || null,
-              specialty,
-              hasLicense ? licenseNumber : null,
-              hasEmail ? email : null,
-            ],
-          );
-        } else {
-          await query(
-            `INSERT INTO doctors (user_id, specialty, license_number, email)
-             VALUES ($1, $2, $3, $4)`,
-            [
-              user.id,
-              specialty,
-              hasLicense ? licenseNumber : null,
-              hasEmail ? email : null,
-            ],
-          );
-        }
-      }
 
       // Generate tokens
       const accessToken = generateAccessToken({
@@ -185,11 +107,7 @@ router.post(
 // Login
 router.post(
   "/login",
-  [
-    body("email").isEmail().normalizeEmail(),
-    body("password").notEmpty(),
-    body("role").optional().isIn(["patient", "doctor"]),
-  ],
+  [body("email").isEmail().normalizeEmail(), body("password").notEmpty()],
   async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -197,7 +115,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password, role } = req.body;
+      const { email, password } = req.body;
 
       // Get user
       const result = await query(
@@ -211,18 +129,7 @@ router.post(
 
       const user = result.rows[0];
 
-      // Check if role matches (if provided)
-      console.log(
-        `Login attempt: email=${email}, requestedRole=${role}, userRole=${user.role}`,
-      );
-      if (role && user.role !== role) {
-        console.log(
-          `Role mismatch: user has role '${user.role}' but tried to login with role '${role}'`,
-        );
-        return res.status(401).json({
-          error: `This email is registered as a ${user.role}. Please use the ${user.role} login page.`,
-        });
-      }
+      console.log(`Login attempt: email=${email}, userRole=${user.role}`);
 
       // Check password
       if (!user.password_hash) {
@@ -266,6 +173,49 @@ router.post(
 // Get current user
 router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
   res.json({ user: req.user });
+});
+
+// Refresh token
+router.post("/refresh", async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+
+    console.log("Refresh token request received");
+
+    if (!refreshToken) {
+      console.log("No refresh token provided in request body");
+      return res.status(401).json({ error: "Refresh token required" });
+    }
+
+    // Verify refresh token
+    let decoded;
+    try {
+      decoded = verifyToken(refreshToken) as {
+        userId: string;
+        email: string;
+        role: string;
+      };
+    } catch (verifyError) {
+      console.log(
+        "Token verification failed:",
+        verifyError instanceof Error ? verifyError.message : verifyError,
+      );
+      return res.status(401).json({ error: "Invalid refresh token" });
+    }
+
+    // Generate new access token
+    const accessToken = generateAccessToken({
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+    });
+
+    console.log(`✅ Token refreshed successfully for user ${decoded.email}`);
+    res.json({ accessToken });
+  } catch (error) {
+    console.error("❌ Token refresh error (uncaught):", error);
+    res.status(500).json({ error: "Token refresh failed" });
+  }
 });
 
 // Logout (client-side only, just return success)

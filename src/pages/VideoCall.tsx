@@ -23,17 +23,26 @@ const VideoCallPage = () => {
       try {
         setIsLoading(true);
 
+        const token = localStorage.getItem("access_token");
+
+        if (!token) {
+          throw new Error("Authentication token not found");
+        }
+
         // Get room ID from backend
-        const response = await fetch("/api/video-calls/room", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/video-calls/room`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              appointmentId,
+            }),
           },
-          body: JSON.stringify({
-            appointmentId,
-          }),
-        });
+        );
 
         if (!response.ok) {
           throw new Error("Failed to initialize room");
@@ -43,14 +52,21 @@ const VideoCallPage = () => {
         setRoomId(data.roomId);
 
         // Start call on backend
-        await fetch("/api/video-calls/start", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        const startResponse = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/video-calls/start`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ appointmentId }),
           },
-          body: JSON.stringify({ appointmentId }),
-        });
+        );
+
+        if (!startResponse.ok) {
+          console.error("Failed to start call on backend");
+        }
       } catch (err: unknown) {
         console.error("Failed to initialize call:", err);
         const message =
@@ -60,7 +76,7 @@ const VideoCallPage = () => {
         setError(message);
         toast({
           title: "Error",
-          description: "Failed to initialize video call",
+          description: message,
           variant: "destructive",
         });
       } finally {
