@@ -47,28 +47,20 @@ const SymptomChecker = () => {
 
     setLoading(true);
     try {
-      // Simulate AI diagnosis (in real app, this would call an AI service)
-      const mockDiagnosis = {
-        condition: "Common Cold",
-        severity: "low",
-        recommendations: [
-          "Get plenty of rest",
-          "Stay hydrated",
-          "Consider over-the-counter pain relievers",
-          "Consult a doctor if symptoms worsen",
-        ],
-        confidence: 85,
+      // Call backend API for real symptom analysis
+      const response = await symptomCheckApi.create(symptoms);
+
+      // Extract diagnosis from response
+      const diagnosisResult = {
+        condition: response.data.ai_diagnosis,
+        severity: response.data.severity_level,
+        recommendations: response.data.recommendations
+          ? response.data.recommendations.split("; ")
+          : [],
+        confidence: response.data.confidence || 0,
       };
 
-      // Save to database
-      await symptomCheckApi.create({
-        symptoms,
-        severity: mockDiagnosis.severity,
-        duration: mockDiagnosis.condition,
-        additionalInfo: mockDiagnosis.recommendations.join("; "),
-      });
-
-      setDiagnosis(mockDiagnosis);
+      setDiagnosis(diagnosisResult);
 
       toast({
         title: "Analysis complete",
@@ -77,7 +69,7 @@ const SymptomChecker = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to analyze symptoms",
         variant: "destructive",
       });
     } finally {

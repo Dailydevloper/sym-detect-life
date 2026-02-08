@@ -181,10 +181,14 @@ INSERT INTO public.medicines (name, description, price, stock_quantity, category
 ('Omeprazole 20mg', 'Acid reflux and heartburn treatment', 18.99, 60, 'Digestive', 'GastroMed', true, 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400')
 ON CONFLICT DO NOTHING;
 
+-- Add unique constraints to prevent duplicates
+ALTER TABLE public.medicines ADD CONSTRAINT IF NOT EXISTS unique_medicine_name_manufacturer UNIQUE (name, manufacturer);
+ALTER TABLE public.doctors ADD CONSTRAINT IF NOT EXISTS unique_doctor_fullname_specialty UNIQUE (full_name, specialty);
+
 -- Insert sample doctors data
-INSERT INTO public.doctors (name, specialty, experience_years, rating, bio, consultation_fee, avatar_url, available_days, available_hours) VALUES
+INSERT INTO public.doctors (full_name, specialty, experience_years, rating, bio, consultation_fee, avatar_url, available_days, available_hours) VALUES
 ('Dr. Sarah Johnson', 'General Practice', 10, 4.8, 'Experienced family doctor specializing in preventive care and general health.', 80.00, 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400', ARRAY['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], '09:00-17:00'),
 ('Dr. Michael Chen', 'Cardiology', 15, 4.9, 'Heart specialist with expertise in cardiovascular diseases and preventive cardiology.', 150.00, 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400', ARRAY['Monday', 'Wednesday', 'Friday'], '10:00-16:00'),
 ('Dr. Emily Rodriguez', 'Dermatology', 8, 4.7, 'Skin care specialist treating various dermatological conditions.', 120.00, 'https://images.unsplash.com/photo-1594824691439-021b3df5a2bb?w=400', ARRAY['Tuesday', 'Thursday', 'Saturday'], '08:00-14:00'),
 ('Dr. James Wilson', 'Orthopedics', 12, 4.6, 'Bone and joint specialist with focus on sports medicine.', 130.00, 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400', ARRAY['Monday', 'Tuesday', 'Thursday', 'Friday'], '11:00-18:00')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (full_name, specialty) DO NOTHING;

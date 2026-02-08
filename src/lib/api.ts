@@ -205,18 +205,7 @@ export const symptomCheckApi = {
 
   getById: (id: string) => api.get(`/symptom-checks/${id}`),
 
-  create: (data: {
-    symptoms: string[];
-    severity: string;
-    duration: string;
-    additionalInfo?: string;
-  }) =>
-    api.post("/symptom-checks", {
-      symptoms: data.symptoms,
-      severity_level: data.severity,
-      recommendations: data.additionalInfo,
-      ai_diagnosis: data.duration,
-    }),
+  create: (symptoms: string[]) => api.post("/symptom-checks", { symptoms }),
 };
 
 export const notificationApi = {
